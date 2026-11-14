@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import db, queue
 from .config import settings
 from .routers import (
+    activity,
     admin,
     auth,
     discussions,
@@ -94,6 +95,7 @@ app.include_router(run.router)
 app.include_router(admin.router)
 app.include_router(follows.router)
 app.include_router(discussions.router)
+app.include_router(activity.router)
 
 @app.get("/")
 async def root():

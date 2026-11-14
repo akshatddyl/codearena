@@ -3490,3 +3490,121 @@ body.editor-fullscreen #toggle-fullscreen {
     padding-left: var(--space-4);
     border-left: 2px solid var(--neutral-deep);
 }
+
+/* ============================================================
+ * Global Activity Feed
+ * ============================================================ */
+
+.dashboard-layout {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 32px;
+    align-items: start;
+}
+
+@media (max-width: 1100px) {
+    .dashboard-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.activity-card {
+    background: var(--surface);
+    border: 1px solid var(--neutral-deep);
+    border-radius: var(--radius);
+    padding: var(--space-5);
+    position: sticky;
+    top: 100px;
+}
+
+.activity-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--neutral-deep);
+}
+
+.activity-header h3 {
+    margin: 0;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--secondary);
+}
+
+.activity-feed {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.activity-item {
+    display: flex;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+    line-height: 1.4;
+    position: relative;
+}
+
+/* The vertical line connecting items */
+.activity-item::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 32px;
+    bottom: -16px;
+    width: 1px;
+    background: var(--neutral-deep);
+}
+
+.activity-item:last-child::before {
+    display: none;
+}
+
+.activity-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: var(--neutral);
+    border: 1px solid var(--neutral-deep);
+    z-index: 1;
+}
+
+.activity-icon.ac {
+    background: var(--success-bg);
+    border-color: var(--success);
+    color: var(--success);
+}
+
+.activity-icon.registration {
+    background: var(--tertiary-dim);
+    border-color: var(--tertiary);
+    color: var(--tertiary);
+}
+
+.activity-content {
+    flex: 1;
+    padding-top: 4px;
+}
+
+.activity-content strong {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.activity-content .accent {
+    color: var(--tertiary);
+}
+
+.activity-time {
+    font-size: 11px;
+    color: var(--secondary);
+    display: block;
+    margin-top: 4px;
+}

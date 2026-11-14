@@ -31,33 +31,52 @@
 <body>
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <main id="main-content" tabindex="-1">
-        <div id="onboarding-container"></div>
-        <div class="card-grid mb-24" id="records-grid">
-            <!-- Populated via JS -->
-        </div>
-        <div class="flex gap-16" style="align-items:center;justify-content:space-between;margin-bottom:32px;">
+        <div class="dashboard-layout">
+            <!-- LEFT COLUMN (Main Content) -->
             <div>
-                <h1 id="greeting">Welcome back</h1>
-                <p class="muted" id="subtitle">Loading your stats...</p>
-            </div>
-            <div style="display:flex;gap:12px;">
-                <a id="view-profile-btn" href="#" class="btn secondary">View Profile</a>
-                <a href="problems.html" class="btn">Browse Problems</a>
-            </div>
-            <a href="problems.html" class="btn">Browse Problems</a>
-        </div>
+                <div id="onboarding-container"></div>
 
-        <div class="card-grid mb-24" id="stats-grid">
-            <!-- Initial skeletons appear before JavaScript fetches data -->
-        </div>
-        <div id="heatmap-container"></div>
+                <div class="flex gap-16" style="align-items:center;justify-content:space-between;margin-bottom:32px;">
+                    <div>
+                        <h1 id="greeting">Welcome back</h1>
+                        <p class="muted" id="subtitle">Loading your stats...</p>
+                    </div>
+                    <div style="display:flex;gap:12px;">
+                        <a id="view-profile-btn" href="#" class="btn secondary">View Profile</a>
+                        <a href="problems.html" class="btn">Browse Problems</a>
+                    </div>
+                </div>
 
-        <div class="card mb-24">
-            <div class="card-header">
-                <h3>Recent Submissions</h3>
-                <a href="history.html" class="muted" style="font-size:12px;">View all →</a>
+                <div class="card-grid mb-24" id="records-grid">
+                    <!-- Populated via JS -->
+                </div>
+
+                <div class="card-grid mb-24" id="stats-grid"></div>
+                <div id="heatmap-container"></div>
+
+                <div class="card mb-24">
+                    <div class="card-header">
+                        <h3>Recent Submissions</h3>
+                        <a href="history.html" class="muted" style="font-size:12px;">View all →</a>
+                    </div>
+                    <div id="recent-table"></div>
+                </div>
             </div>
-            <div id="recent-table"></div>
+
+            <!-- RIGHT COLUMN (Activity Feed) -->
+            <aside>
+                <div class="activity-card">
+                    <div class="activity-header">
+                        <h3>Live Activity</h3>
+                        <span class="muted" style="font-size: 11px;">Global</span>
+                    </div>
+                    <div class="activity-feed" id="activity-feed">
+                        <div class="loading-block" style="padding: 20px 0;">
+                            <span class="spinner"></span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
         </div>
     </main>
 
@@ -240,6 +259,61 @@
                     toast(friendlyErrorMessage(err, 'Failed to load dashboard'), 'error');
                 }
             })();
+
+            // ---- Load Global Activity Feed ----
+            async function loadActivityFeed() {
+                const feedContainer = document.getElementById('activity-feed');
+                if (!feedContainer) return;
+                try {
+                    const events = await apiFetch('/api/activity/?limit=15');
+
+                    if (!events || events.length === 0) {
+                        feedContainer.innerHTML = '<p class="muted">No activity yet.</p>';
+                        return;
+                    }
+
+                    clear(feedContainer);
+
+                    events.forEach(e => {
+                        let iconSvg = '';
+                        let content = null;
+
+                        if (e.type === 'ac') {
+                            iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>`;
+                            content = el('div', { class: 'activity-content' }, [
+                                el('div', {}, [
+                                    el('strong', { text: e.username }),
+                                    ' solved ',
+                                    el('span', { class: 'accent', text: e.problem_title }),
+                                    e.difficulty === 'hard' ? ' 🔥' : ''
+                                ]),
+                                el('div', { class: 'activity-time', text: formatDate(e.created_at) })
+                            ]);
+                        } else if (e.type === 'registration') {
+                            iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>`;
+                            content = el('div', { class: 'activity-content' }, [
+                                el('div', {}, [
+                                    el('strong', { text: e.username }),
+                                    ' joined CodeArena'
+                                ]),
+                                el('div', { class: 'activity-time', text: formatDate(e.created_at) })
+                            ]);
+                        }
+
+                        if (content) {
+                            const iconEl = el('div', { class: `activity-icon ${e.type}` });
+                            iconEl.innerHTML = iconSvg;
+                            feedContainer.appendChild(el('div', { class: 'activity-item' }, [iconEl, content]));
+                        }
+                    });
+
+                } catch (err) {
+                    console.error('Failed to load activity', err);
+                    feedContainer.innerHTML = '<p class="muted">Could not load activity.</p>';
+                }
+            }
+
+            loadActivityFeed();
 
             function statCard(label, value, sub) {
                 return el('div', { class: 'stat' }, [
