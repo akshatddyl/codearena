@@ -402,14 +402,17 @@ void grading_result_free(grading_result_t *g)
         return;
     if (g->cases)
     {
-        for (int i = 0; i < g->cases_count; i++)
+        int n = g->cases_executed > 0 ? g->cases_executed : g->cases_count;
+        for (int i = 0; i < n; i++)
         {
             free(g->cases[i].actual_output);
+            g->cases[i].actual_output = NULL;
         }
         free(g->cases);
         g->cases = NULL;
-        g->cases_count = 0;
     }
+    g->cases_count = 0;
+    g->cases_executed = 0;
     free(g->stdout_capture);
     free(g->stderr_capture);
     g->stdout_capture = NULL;
@@ -516,6 +519,7 @@ int job_process(worker_t *w, uint64_t submission_id,
     g->test_passed = 0;
     g->first_failed = 0;
     g->cases_count = ts.count;
+    g->cases_executed = 0;
     g->cases = calloc((size_t)ts.count, sizeof(test_case_result_t));
     if (!g->cases)
     {
@@ -560,6 +564,7 @@ int job_process(worker_t *w, uint64_t submission_id,
         cr->actual_output = out ? strdup(out) : NULL;
         cr->runtime_ms = rt;
         cr->memory_kb = mem;
+        g->cases_executed = i + 1;
 
         total_points += ts.cases[i].points;
         int prio = verdict_priority(this_verdict);

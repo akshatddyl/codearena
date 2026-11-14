@@ -286,44 +286,50 @@ static int commit_result(worker_t *w, uint64_t submission_id,
     db_result_free(ir);
 
     /* Step 2b: insert per-test-case results */
-    if (g->cases && g->cases_count > 0)
     {
-        for (int i = 0; i < g->cases_count; i++)
+        int executed = g->cases_executed > 0 ? g->cases_executed : g->cases_count;
+        if (g->cases && executed > 0)
         {
-            const test_case_result_t *c = &g->cases[i];
-
-            char tcid[24], ord[16], rt[16], mem[16], tsub[24];
-            snprintf(tcid, sizeof(tcid), "%ld", c->test_case_id);
-            snprintf(ord, sizeof(ord), "%d", c->ordinal);
-            snprintf(rt, sizeof(rt), "%d", c->runtime_ms);
-            snprintf(mem, sizeof(mem), "%d", c->memory_kb);
-            snprintf(tsub, sizeof(tsub), "%llu",
-                     (unsigned long long)submission_id);
-
-            const char *tc_params[7] = {
-                tsub,
-                tcid,
-                ord,
-                c->verdict,
-                c->actual_output ? c->actual_output : "",
-                rt,
-                mem,
-            };
-
-            db_result_t *tcr = db_exec(w->db,
-                                       "INSERT INTO test_case_results "
-                                       "  (submission_id, test_case_id, ordinal, verdict, "
-                                       "   actual_output, runtime_ms, memory_kb) "
-                                       "VALUES ($1, $2, $3, $4, $5, $6, $7) "
-                                       "ON CONFLICT (submission_id, test_case_id) DO NOTHING",
-                                       7, tc_params);
-            if (tcr)
+            for (int i = 0; i < executed; i++)
             {
+                const test_case_result_t *c = &g->cases[i];
+                if (c->test_case_id <= 0)
+                    continue;
+
+                char tcid[24], ord[16], rt[16], mem[16], tsub[24];
+                snprintf(tcid, sizeof(tcid), "%ld", c->test_case_id);
+                snprintf(ord, sizeof(ord), "%d", c->ordinal);
+                snprintf(rt, sizeof(rt), "%d", c->runtime_ms);
+                snprintf(mem, sizeof(mem), "%d", c->memory_kb);
+                snprintf(tsub, sizeof(tsub), "%llu",
+                         (unsigned long long)submission_id);
+
+                const char *tc_params[7] = {
+                    tsub,
+                    tcid,
+                    ord,
+                    c->verdict,
+                    c->actual_output ? c->actual_output : "",
+                    rt,
+                    mem,
+                };
+
+                db_result_t *tcr = db_exec(w->db,
+                                           "INSERT INTO test_case_results "
+                                           "  (submission_id, test_case_id, ordinal, verdict, "
+                                           "   actual_output, runtime_ms, memory_kb) "
+                                           "VALUES ($1, $2, $3, $4, $5, $6, $7) "
+                                           "ON CONFLICT (submission_id, test_case_id) DO NOTHING",
+                                           7, tc_params);
+                if (!tcr)
+                {
+                    fprintf(stderr,
+                            "worker[%s]: failed to insert test_case_result for case %d: %s\n",
+                            w->cfg.worker_id, c->ordinal, db_client_last_error(w->db));
+                    db_rollback(w->db);
+                    return -1;
+                }
                 db_result_free(tcr);
-            }
-            else
-            {
-                fprintf(stderr, "worker: failed to insert test_case_result for case %d\n", c->ordinal);
             }
         }
     }

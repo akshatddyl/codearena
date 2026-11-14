@@ -42,6 +42,7 @@ typedef struct
     /* Per-test-case details */
     test_case_result_t *cases;
     int cases_count;
+    int cases_executed; /* how many entries in cases[] are populated */
 } grading_result_t;
 
 /*
