@@ -3660,3 +3660,9 @@ body.editor-fullscreen #toggle-fullscreen {
     margin-right: 4px;
     margin-top: 4px;
 }
+
+@media (max-width: 768px) {
+    .responsive-grid {
+        grid-template-columns: 1fr !important;
+    }
+}

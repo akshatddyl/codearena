@@ -34,9 +34,22 @@
         <div class="dashboard-layout">
             <!-- LEFT COLUMN (Main Content) -->
             <div>
-                <div id="onboarding-container"></div>
+                <!-- Header -->
+                <div class="flex gap-16" style="align-items:flex-start;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;">
+                    <div>
+                        <h1 id="greeting">Welcome back</h1>
+                        <p class="muted" id="subtitle">Loading your stats...</p>
+                    </div>
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                        <a id="view-profile-btn" href="#" class="btn secondary">View Profile</a>
+                        <button id="random-problem-btn" class="btn secondary">
+                            🎲 Random Problem
+                        </button>
+                        <a href="problems.html" class="btn">Browse Problems</a>
+                    </div>
+                </div>
 
-                <!-- Resume Last Problem Card -->
+                <!-- Resume Card -->
                 <div id="resume-card" class="card mb-24 hidden" style="border-left: 4px solid var(--tertiary);">
                     <div class="flex" style="justify-content: space-between; align-items: center;">
                         <div>
@@ -47,26 +60,41 @@
                     </div>
                 </div>
 
-                <div class="flex gap-16" style="align-items:center;justify-content:space-between;margin-bottom:32px;">
-                    <div>
-                        <h1 id="greeting">Welcome back</h1>
-                        <p class="muted" id="subtitle">Loading your stats...</p>
-                    </div>
-                    <div style="display:flex;gap:12px;">
-                        <a id="view-profile-btn" href="#" class="btn secondary">View Profile</a>
-                        <button id="random-problem-btn" class="btn secondary">
-                            🎲 Random Problem
-                        </button>
-                        <a href="problems.html" class="btn">Browse Problems</a>
-                    </div>
-                </div>
+                <!-- Onboarding -->
+                <div id="onboarding-container"></div>
 
+                <!-- Records -->
                 <div class="card-grid mb-24" id="records-grid">
                     <!-- Populated via JS -->
                 </div>
 
+                <!-- Stats Row -->
                 <div class="card-grid mb-24" id="stats-grid"></div>
 
+                <!-- Two-column grid for goal & recommendation -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;" class="responsive-grid">
+                    <!-- Weekly Goal Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Weekly Goal</h3>
+                        </div>
+                        <div id="weekly-goal-container">
+                            <div class="loading-block" style="padding: 20px 0;"><span class="spinner"></span></div>
+                        </div>
+                    </div>
+
+                    <!-- Recommendation Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Recommended Next</h3>
+                        </div>
+                        <div id="recommendation-container">
+                            <div class="loading-block" style="padding: 20px 0;"><span class="spinner"></span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Topic Mastery -->
                 <div class="card mb-24">
                     <div class="card-header">
                         <h3>Topic Mastery</h3>
@@ -76,8 +104,10 @@
                     </div>
                 </div>
 
+                <!-- Heatmap -->
                 <div id="heatmap-container"></div>
 
+                <!-- Recent Submissions -->
                 <div class="card mb-24">
                     <div class="card-header">
                         <h3>Recent Submissions</h3>
@@ -114,11 +144,18 @@
 
             const user = Auth.getUser();
 
+            // Contextual greeting
+            const hour = new Date().getHours();
+            let timeGreeting = 'Welcome back';
+            if (hour < 12) timeGreeting = 'Good morning';
+            else if (hour < 18) timeGreeting = 'Good afternoon';
+            else timeGreeting = 'Good evening';
+
             document.getElementById('view-profile-btn').href =
                 `profile.html?user=${encodeURIComponent(user.username)}`;
 
             document.getElementById('greeting').textContent =
-                `Welcome back, ${user.username}`;
+                `${timeGreeting}, ${user.username}`;
 
             // 1. Render Skeletons immediately
             document.getElementById('stats-grid').appendChild(Skeleton.statGrid(4));
@@ -135,8 +172,14 @@
                     // Check milestones (solved count & level)
                     checkMilestones(records.total_solved, freshUser.level || 1);
 
+                    const hourNow = new Date().getHours();
+                    let timeGreetingNow = 'Welcome back';
+                    if (hourNow < 12) timeGreetingNow = 'Good morning';
+                    else if (hourNow < 18) timeGreetingNow = 'Good afternoon';
+                    else timeGreetingNow = 'Good evening';
+
                     document.getElementById('greeting').textContent =
-                        `Welcome back, ${freshUser.username}`;
+                        `${timeGreetingNow}, ${freshUser.username}`;
                     document.getElementById('view-profile-btn').href =
                         `profile.html?user=${encodeURIComponent(freshUser.username)}`;
 
@@ -429,6 +472,53 @@
             }
 
             loadTopicMastery();
+
+            // ---- Load Weekly Goal & Recommendation ----
+            async function loadRecommendations() {
+                const goalContainer = document.getElementById('weekly-goal-container');
+                const recContainer = document.getElementById('recommendation-container');
+                if (!goalContainer || !recContainer) return;
+
+                try {
+                    const data = await apiFetch('/api/users/me/recommendations');
+
+                    // --- Weekly Goal ---
+                    clear(goalContainer);
+                    const solved = (data.weekly_stats && data.weekly_stats.weekly_solved) || 0;
+                    const target = 5; // Could be user-configurable later
+                    const pct = Math.min(100, Math.round((solved / target) * 100));
+
+                    goalContainer.appendChild(el('div', { class: 'flex', style: { justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px' } }, [
+                        el('span', { text: 'Solve 5 problems' }),
+                        el('span', { style: { fontWeight: '600' }, text: `${solved} / ${target}` })
+                    ]));
+                    goalContainer.appendChild(el('div', { class: 'progress', style: { height: '8px', marginBottom: '12px' } }, [
+                        el('div', { class: 'bar', style: { width: `${pct}%`, background: pct === 100 ? 'var(--success)' : 'var(--tertiary)' } })
+                    ]));
+                    goalContainer.appendChild(el('p', { class: 'muted', style: { fontSize: '12px', margin: '0' }, text: pct === 100 ? '🎉 Goal reached for this week!' : `Keep going! ${target - solved} more to go.` }));
+
+                    // --- Recommendation ---
+                    clear(recContainer);
+                    if (data.recommendation) {
+                        const p = data.recommendation.problem;
+                        recContainer.appendChild(el('p', { class: 'muted', style: { fontSize: '12px', marginTop: '0', marginBottom: '12px' }, text: data.recommendation.reason }));
+                        recContainer.appendChild(el('h4', { style: { margin: '0 0 4px', fontFamily: 'var(--font-serif)', fontSize: '1.2rem' }, text: p.title }));
+                        recContainer.appendChild(el('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' } }, [
+                            difficultyBadge(p.difficulty),
+                            el('a', { href: `problem.html?id=${p.id}`, class: 'btn secondary', text: 'Solve Now →', style: { padding: '4px 12px', fontSize: '12px' } })
+                        ]));
+                    } else {
+                        recContainer.appendChild(el('p', { class: 'muted', text: 'You have solved everything! Amazing.' }));
+                    }
+
+                } catch (err) {
+                    console.error('Failed to load recommendations', err);
+                    goalContainer.innerHTML = '<p class="muted">Unable to load goal.</p>';
+                    recContainer.innerHTML = '<p class="muted">Unable to load recommendations.</p>';
+                }
+            }
+
+            loadRecommendations();
 
             function statCard(label, value, sub) {
                 return el('div', { class: 'stat' }, [

@@ -2,13 +2,14 @@
 /api/users — public user profiles.
 """
 
+import math
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from .. import db
 from ..deps import CurrentUser, get_current_user
 from ..models import UpdateProfileRequest
-
-import math
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -185,3 +186,77 @@ async def get_user_topics(
         })
 
     return result
+
+
+@router.get("/me/recommendations")
+async def get_recommendations(
+    user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Suggest the next problem based on the user's weakest topic.
+    Also returns stats for the current week.
+    """
+    # 1. Find the user's weakest topic
+    weakest_topic_row = await db.fetch_one(
+        """
+        WITH user_topics AS (
+            SELECT unnest(p.tags) AS tag,
+                   COUNT(*) FILTER (WHERE r.verdict = 'AC') AS solved
+            FROM problems p
+            LEFT JOIN submissions s ON s.problem_id = p.id AND s.user_id = $1
+            LEFT JOIN results r ON r.submission_id = s.id
+            WHERE p.is_active = TRUE
+            GROUP BY tag
+            HAVING COUNT(*) FILTER (WHERE r.verdict = 'AC') < COUNT(*)
+            ORDER BY (COUNT(*) FILTER (WHERE r.verdict = 'AC')::float / COUNT(*)) ASC
+            LIMIT 1
+        )
+        SELECT tag FROM user_topics
+        """,
+        user.id,
+    )
+
+    recommendation = None
+    if weakest_topic_row:
+        weakest_tag = weakest_topic_row["tag"]
+        # Find an unsolved problem in this topic
+        recommended_problem = await db.fetch_one(
+            """
+            SELECT p.id, p.title, p.difficulty
+            FROM problems p
+            WHERE p.is_active = TRUE
+              AND $1 = ANY(p.tags)
+              AND p.id NOT IN (
+                  SELECT s.problem_id FROM submissions s
+                  JOIN results r ON r.submission_id = s.id
+                  WHERE s.user_id = $2 AND r.verdict = 'AC'
+              )
+            ORDER BY RANDOM()
+            LIMIT 1
+            """,
+            weakest_tag, user.id,
+        )
+        if recommended_problem:
+            recommendation = {
+                "problem": dict(recommended_problem),
+                "reason": f"Improve your {weakest_tag.replace('-', ' ')} skills",
+            }
+
+    # 2. Weekly Stats
+    week_start = datetime.utcnow() - timedelta(days=datetime.utcnow().weekday())
+    weekly_stats = await db.fetch_one(
+        """
+        SELECT
+            COUNT(DISTINCT s.problem_id) FILTER (WHERE r.verdict = 'AC') AS weekly_solved,
+            COUNT(s.id) AS weekly_submissions
+        FROM submissions s
+        LEFT JOIN results r ON r.submission_id = s.id
+        WHERE s.user_id = $1 AND s.submitted_at >= $2
+        """,
+        user.id, week_start,
+    )
+
+    return {
+        "recommendation": recommendation,
+        "weekly_stats": dict(weekly_stats) if weekly_stats else {"weekly_solved": 0, "weekly_submissions": 0},
+    }
