@@ -690,6 +690,15 @@
                         }),
                     ]));
 
+                    // Render Tags
+                    if (p.tags && p.tags.length > 0) {
+                        const tagsContainer = el('div', { style: { marginTop: '12px' } });
+                        p.tags.forEach(tag => {
+                            tagsContainer.appendChild(el('span', { class: 'tag-pill', text: `#${tag}` }));
+                        });
+                        header.appendChild(tagsContainer);
+                    }
+
                     // Statement sections
                     clear(statement);
                     if (p.description) statement.appendChild(renderSection('Description', p.description));

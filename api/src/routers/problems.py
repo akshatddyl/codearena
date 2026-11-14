@@ -22,7 +22,7 @@ async def list_problems(
     rows = await db.fetch_all(
         """
         SELECT id, title, difficulty, time_limit_ms, memory_limit_mb,
-               created_at
+               created_at, tags
         FROM problems
         WHERE is_active = TRUE
         ORDER BY id ASC
@@ -43,7 +43,7 @@ async def get_problem(
         """
         SELECT id, title, description, input_format, output_format,
                constraints, difficulty, time_limit_ms, memory_limit_mb,
-               created_at
+               created_at, tags
         FROM problems
         WHERE id = $1 AND is_active = TRUE
         """,

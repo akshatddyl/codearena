@@ -367,6 +367,10 @@
                     el('div', { class: 'field' }, [
                         el('label', { text: 'Constraints' }),
                         el('input', { type: 'text', id: 'cp-constraints' })
+                    ]),
+                    el('div', { class: 'field' }, [
+                        el('label', { text: 'Tags (comma-separated)' }),
+                        el('input', { type: 'text', id: 'cp-tags', placeholder: 'e.g. arrays, dp, two-pointers' })
                     ])
                 ]));
 
@@ -523,6 +527,10 @@
                         }
                     });
 
+                    // Gather tags
+                    const tagsRaw = document.getElementById('cp-tags').value || '';
+                    const tags = tagsRaw.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+
                     const payload = {
                         title: document.getElementById('cp-title').value,
                         description: document.getElementById('cp-desc').value,
@@ -532,6 +540,7 @@
                         time_limit_ms: parseInt(document.getElementById('cp-time').value, 10),
                         memory_limit_mb: parseInt(document.getElementById('cp-memory').value, 10),
                         difficulty: document.getElementById('cp-difficulty').value,
+                        tags: tags,
                         test_cases: test_cases,
                         hints: hints
                     };

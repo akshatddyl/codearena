@@ -164,18 +164,19 @@ async def create_problem(
     async with db.pool().acquire() as conn:
         async with conn.transaction():
             # 1. Insert the problem
+            tags = [t.strip().lower() for t in (req.tags or []) if isinstance(t, str) and t.strip()]
             problem_row = await conn.fetchrow(
                 """
                 INSERT INTO problems
                     (title, description, input_format, output_format,
                      constraints, time_limit_ms, memory_limit_mb,
-                     difficulty, is_active, created_by)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE, $9)
+                     difficulty, is_active, created_by, tags)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE, $9, $10)
                 RETURNING id
                 """,
                 req.title, req.description, req.input_format,
                 req.output_format, req.constraints, req.time_limit_ms,
-                req.memory_limit_mb, req.difficulty, admin.id,
+                req.memory_limit_mb, req.difficulty, admin.id, tags,
             )
             problem_id = problem_row["id"]
 
@@ -193,11 +194,16 @@ async def create_problem(
                 )
 
             # 3. Insert hints
-            if req.hints:
-                for idx, hint in enumerate(req.hints, start=1):
+            hints = [h for h in (req.hints or []) if getattr(h, "content", None) and str(h.content).strip()]
+            if hints:
+                for idx, hint in enumerate(hints, start=1):
                     await conn.execute(
-                        "INSERT INTO problem_hints (problem_id, ordinal, content) VALUES ($1, $2, $3)",
-                        problem_id, idx, hint.content,
+                        """
+                        INSERT INTO problem_hints (problem_id, ordinal, content)
+                        VALUES ($1, $2, $3)
+                        ON CONFLICT (problem_id, ordinal) DO UPDATE SET content = EXCLUDED.content
+                        """,
+                        problem_id, idx, hint.content.strip(),
                     )
 
     return {"id": problem_id, "status": "created"}

@@ -52,6 +52,16 @@
                 </div>
 
                 <div class="card-grid mb-24" id="stats-grid"></div>
+
+                <div class="card mb-24">
+                    <div class="card-header">
+                        <h3>Topic Mastery</h3>
+                    </div>
+                    <div id="topic-mastery-container">
+                        <div class="loading-block" style="padding: 20px 0;"><span class="spinner"></span></div>
+                    </div>
+                </div>
+
                 <div id="heatmap-container"></div>
 
                 <div class="card mb-24">
@@ -314,6 +324,48 @@
             }
 
             loadActivityFeed();
+
+            // ---- Load Topic Mastery ----
+            async function loadTopicMastery() {
+                const container = document.getElementById('topic-mastery-container');
+                if (!container) return;
+                try {
+                    const topics = await apiFetch('/api/users/me/topics');
+
+                    if (!topics || topics.length === 0) {
+                        container.innerHTML = '<p class="muted" style="font-size: 14px;">Solve problems with tags to see your mastery map.</p>';
+                        return;
+                    }
+
+                    clear(container);
+                    const grid = el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' } });
+
+                    topics.forEach(t => {
+                        let barColor = 'var(--secondary)';
+                        if (t.percentage >= 75) barColor = 'var(--success)';
+                        else if (t.percentage >= 40) barColor = 'var(--warning)';
+
+                        const topicEl = el('div', {}, [
+                            el('div', { class: 'flex', style: { justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px' } }, [
+                                el('span', { style: { fontWeight: '600', textTransform: 'capitalize' }, text: String(t.tag || '').replace('-', ' ') }),
+                                el('span', { class: 'muted', text: `${t.solved} / ${t.total}` })
+                            ]),
+                            el('div', { class: 'progress', style: { height: '6px' } }, [
+                                el('div', { class: 'bar', style: { width: `${t.percentage}%`, background: barColor } })
+                            ])
+                        ]);
+                        grid.appendChild(topicEl);
+                    });
+
+                    container.appendChild(grid);
+
+                } catch (err) {
+                    console.error('Failed to load topics', err);
+                    container.innerHTML = '<p class="muted">Could not load topic mastery.</p>';
+                }
+            }
+
+            loadTopicMastery();
 
             function statCard(label, value, sub) {
                 return el('div', { class: 'stat' }, [

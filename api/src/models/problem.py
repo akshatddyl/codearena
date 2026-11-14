@@ -15,6 +15,7 @@ class ProblemSummary(BaseModel):
     time_limit_ms: int
     memory_limit_mb: int
     created_at: datetime
+    tags: List[str] = []
 
 
 class ProblemDetail(BaseModel):
@@ -28,6 +29,7 @@ class ProblemDetail(BaseModel):
     time_limit_ms: int
     memory_limit_mb: int
     created_at: datetime
+    tags: List[str] = []
 
 
 class TestCaseInput(BaseModel):
@@ -50,5 +52,6 @@ class CreateProblemRequest(BaseModel):
     time_limit_ms: int = Field(2000, gt=0, le=60000)
     memory_limit_mb: int = Field(256, gt=0, le=4096)
     difficulty: str = Field("easy", pattern="^(easy|medium|hard)$")
+    tags: List[str] = Field(default_factory=list)
     test_cases: List[TestCaseInput] = Field(..., min_items=1)
     hints: Optional[List[HintInput]] = None

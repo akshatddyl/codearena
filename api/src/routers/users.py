@@ -133,3 +133,55 @@ async def update_profile(
         user.id,
     )
     return {"status": "ok"}
+
+
+@router.get("/me/topics")
+async def get_user_topics(
+    user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Calculate how many problems the user has solved per topic tag.
+    """
+    rows = await db.fetch_all(
+        """
+        WITH solved_problems AS (
+            SELECT DISTINCT s.problem_id
+            FROM submissions s
+            JOIN results r ON r.submission_id = s.id
+            WHERE s.user_id = $1 AND r.verdict = 'AC'
+        )
+        SELECT
+            unnest(p.tags) AS tag,
+            COUNT(*) AS solved_count
+        FROM problems p
+        JOIN solved_problems sp ON sp.problem_id = p.id
+        GROUP BY tag
+        ORDER BY solved_count DESC
+        """,
+        user.id,
+    )
+
+    # Also get total available problems per tag
+    totals = await db.fetch_all(
+        """
+        SELECT unnest(tags) AS tag, COUNT(*) AS total_count
+        FROM problems WHERE is_active = TRUE
+        GROUP BY tag
+        """
+    )
+    total_map = {row["tag"]: row["total_count"] for row in totals}
+
+    result = []
+    for row in rows:
+        tag = row["tag"]
+        solved = row["solved_count"]
+        total = total_map.get(tag, solved)
+        pct = round((solved / total) * 100) if total > 0 else 0
+        result.append({
+            "tag": tag,
+            "solved": solved,
+            "total": total,
+            "percentage": pct,
+        })
+
+    return result
