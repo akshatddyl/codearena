@@ -6,7 +6,7 @@ Currently: submission heat-map data for the current user.
 
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from .. import db
 from ..deps import CurrentUser, get_current_user
@@ -133,3 +133,25 @@ async def get_user_streak(user: CurrentUser = Depends(get_current_user)):
             break
 
     return UserStreak(current_streak=streak, last_submission_date=last_date.isoformat())
+
+
+@router.get("/next-contest")
+async def get_next_contest(
+    user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Fetch the next upcoming contest. Returns null if no contest is
+    scheduled in the future.
+    """
+    row = await db.fetch_one(
+        """
+        SELECT id, title, start_time, end_time
+        FROM contests
+        WHERE is_published = TRUE AND end_time > NOW()
+        ORDER BY start_time ASC
+        LIMIT 1
+        """
+    )
+    if not row:
+        return None
+    return dict(row)

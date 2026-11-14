@@ -1,6 +1,7 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from .. import db
 from ..deps import CurrentUser, require_admin
@@ -207,3 +208,59 @@ async def create_problem(
                     )
 
     return {"id": problem_id, "status": "created"}
+
+
+class CreateContestRequest(BaseModel):
+    title: str
+    description: str = ""
+    start_time: datetime
+    end_time: datetime
+
+
+@router.get("/contests")
+async def list_contests(
+    admin: CurrentUser = Depends(require_admin),
+):
+    """List all contests (past, present, and future)."""
+    rows = await db.fetch_all(
+        """
+        SELECT id, title, description, start_time, end_time, is_published
+        FROM contests
+        ORDER BY start_time DESC
+        """
+    )
+    return [dict(r) for r in rows]
+
+
+@router.post("/contests")
+async def create_contest(
+    req: CreateContestRequest,
+    admin: CurrentUser = Depends(require_admin),
+):
+    """Schedule a new contest."""
+    if req.end_time <= req.start_time:
+        raise HTTPException(status_code=400, detail="End time must be after start time")
+
+    row = await db.fetch_one(
+        """
+        INSERT INTO contests (title, description, start_time, end_time, is_published)
+        VALUES ($1, $2, $3, $4, FALSE)
+        RETURNING id
+        """,
+        req.title, req.description, req.start_time, req.end_time,
+    )
+    return {"id": row["id"], "status": "created"}
+
+
+@router.put("/contests/{contest_id}/publish")
+async def toggle_contest_publish(
+    contest_id: int,
+    publish: bool,
+    admin: CurrentUser = Depends(require_admin),
+):
+    """Publish or unpublish a contest."""
+    await db.execute(
+        "UPDATE contests SET is_published = $1 WHERE id = $2",
+        publish, contest_id,
+    )
+    return {"status": "ok"}

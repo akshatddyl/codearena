@@ -94,6 +94,9 @@
                     </div>
                 </div>
 
+                <!-- Contest Countdown -->
+                <div id="contest-countdown-container" class="mb-24"></div>
+
                 <!-- Topic Mastery -->
                 <div class="card mb-24">
                     <div class="card-header">
@@ -519,6 +522,112 @@
             }
 
             loadRecommendations();
+
+            // ---- Contest Countdown ----
+            let countdownInterval = null;
+
+            async function loadContestCountdown() {
+                const container = document.getElementById('contest-countdown-container');
+                if (!container) return;
+                try {
+                    const contest = await apiFetch('/api/stats/next-contest');
+
+                    if (!contest) {
+                        container.innerHTML = '';
+                        return;
+                    }
+
+                    const startTime = new Date(contest.start_time).getTime();
+                    const endTime = new Date(contest.end_time).getTime();
+
+                    const widget = el('div', { class: 'contest-widget', id: 'contest-widget' });
+
+                    widget.innerHTML = `
+                        <div class="contest-info">
+                            <div class="contest-label" id="contest-status-label">Upcoming Contest</div>
+                            <h3 class="contest-title">${contest.title}</h3>
+                        </div>
+                        <div class="contest-timer" id="contest-timer">
+                            <div class="timer-block">
+                                <div class="timer-value" id="t-days">00</div>
+                                <div class="timer-label">Days</div>
+                            </div>
+                            <div class="timer-block">
+                                <div class="timer-value" id="t-hours">00</div>
+                                <div class="timer-label">Hours</div>
+                            </div>
+                            <div class="timer-block">
+                                <div class="timer-value" id="t-mins">00</div>
+                                <div class="timer-label">Mins</div>
+                            </div>
+                            <div class="timer-block">
+                                <div class="timer-value" id="t-secs">00</div>
+                                <div class="timer-label">Secs</div>
+                            </div>
+                        </div>
+                    `;
+
+                    container.innerHTML = '';
+                    container.appendChild(widget);
+
+                    function updateTimer() {
+                        const now = Date.now();
+
+                        if (now >= endTime) {
+                            // Contest ended
+                            container.innerHTML = '';
+                            if (countdownInterval) clearInterval(countdownInterval);
+                            return;
+                        }
+
+                        const isLive = now >= startTime;
+                        const target = isLive ? endTime : startTime;
+                        const diff = target - now;
+
+                        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+                        const pad = (n) => String(n).padStart(2, '0');
+
+                        const dEl = document.getElementById('t-days');
+                        const hEl = document.getElementById('t-hours');
+                        const mEl = document.getElementById('t-mins');
+                        const sEl = document.getElementById('t-secs');
+
+                        if (dEl) dEl.textContent = pad(days);
+                        if (hEl) hEl.textContent = pad(hours);
+                        if (mEl) mEl.textContent = pad(mins);
+                        if (sEl) sEl.textContent = pad(secs);
+
+                        // Change styling if live
+                        const widgetEl = document.getElementById('contest-widget');
+                        const statusLabel = document.getElementById('contest-status-label');
+                        if (widgetEl && statusLabel) {
+                            if (isLive) {
+                                if (!widgetEl.classList.contains('live')) {
+                                    widgetEl.classList.add('live');
+                                }
+                                statusLabel.textContent = '🔴 Live Now — Ends in';
+                            } else {
+                                widgetEl.classList.remove('live');
+                                statusLabel.textContent = 'Upcoming Contest — Starts in';
+                            }
+                        }
+                    }
+
+                    updateTimer();
+                    if (countdownInterval) clearInterval(countdownInterval);
+                    countdownInterval = setInterval(updateTimer, 1000);
+
+                } catch (err) {
+                    console.error('Failed to load contest countdown', err);
+                    container.innerHTML = '';
+                }
+            }
+
+            loadContestCountdown();
 
             function statCard(label, value, sub) {
                 return el('div', { class: 'stat' }, [

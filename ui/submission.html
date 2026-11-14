@@ -148,6 +148,68 @@
 
                 container.appendChild(hero);
 
+                // Runtime & Memory Visualization (only if AC)
+                if (r && r.verdict === 'AC'
+                    && s.problem_time_limit_ms && s.problem_memory_limit_mb) {
+
+                    const vizCard = el('div', { class: 'card mb-24' });
+                    vizCard.appendChild(el('div', { class: 'card-header' }, [
+                        el('h3', { text: 'Performance' }),
+                        el('span', { class: 'muted', text: 'vs. problem limits' })
+                    ]));
+
+                    const vizContainer = el('div', { class: 'metrics-viz' });
+
+                    // --- Runtime bar ---
+                    const timeLimit = s.problem_time_limit_ms;
+                    const timeUsed = r.runtime_ms || 0;
+                    const timePct = timeLimit ? Math.min(100, Math.round((timeUsed / timeLimit) * 100)) : 0;
+
+                    let timeColor = 'success';
+                    if (timePct > 80) timeColor = 'danger';
+                    else if (timePct > 50) timeColor = 'warning';
+
+                    vizContainer.appendChild(el('div', { class: 'metric-row' }, [
+                        el('div', { class: 'metric-row-header' }, [
+                            el('span', { class: 'metric-row-label', text: 'Runtime' }),
+                            el('span', { class: `metric-row-value ${timeColor}`, text: `${timeUsed} / ${timeLimit} ms` })
+                        ]),
+                        el('div', { class: 'metric-bar-bg' }, [
+                            el('div', {
+                                class: `metric-bar-fill ${timeColor}`,
+                                style: { width: `${timePct}%` }
+                            })
+                        ]),
+                        el('div', { class: 'metric-comparison', text: `${timePct}% of limit used` })
+                    ]));
+
+                    // --- Memory bar ---
+                    const memLimit = s.problem_memory_limit_mb * 1024; // Convert MB to KB
+                    const memUsed = r.memory_kb || 0;
+                    const memPct = memLimit ? Math.min(100, Math.round((memUsed / memLimit) * 100)) : 0;
+
+                    let memColor = 'success';
+                    if (memPct > 80) memColor = 'danger';
+                    else if (memPct > 50) memColor = 'warning';
+
+                    vizContainer.appendChild(el('div', { class: 'metric-row' }, [
+                        el('div', { class: 'metric-row-header' }, [
+                            el('span', { class: 'metric-row-label', text: 'Memory' }),
+                            el('span', { class: `metric-row-value ${memColor}`, text: `${formatNumber(memUsed)} / ${formatNumber(memLimit)} KB` })
+                        ]),
+                        el('div', { class: 'metric-bar-bg' }, [
+                            el('div', {
+                                class: `metric-bar-fill ${memColor}`,
+                                style: { width: `${memPct}%` }
+                            })
+                        ]),
+                        el('div', { class: 'metric-comparison', text: `${memPct}% of limit used` })
+                    ]));
+
+                    vizCard.appendChild(vizContainer);
+                    container.appendChild(vizCard);
+                }
+
                 // ============================================================
                 // Live progress bar (only while grading)
                 // ============================================================

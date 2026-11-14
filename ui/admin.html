@@ -47,6 +47,7 @@
                     <a href="#" id="nav-analytics">Analytics</a>
                     <a href="#" id="nav-jobs">Job Queue</a>
                     <a href="#" id="nav-create">Create Problem</a>
+                    <a href="#" id="nav-contests">Contests</a>
                 </nav>
             </aside>
 
@@ -80,6 +81,7 @@
             document.getElementById('nav-analytics').onclick = (e) => { e.preventDefault(); loadAnalytics(e.target); };
             document.getElementById('nav-jobs').onclick = (e) => { e.preventDefault(); loadJobs(e.target); };
             document.getElementById('nav-create').onclick = (e) => { e.preventDefault(); loadCreateProblem(e.target); };
+            document.getElementById('nav-contests').onclick = (e) => { e.preventDefault(); loadContests(e.target); };
 
             function setActiveNav(clickedEl) {
                 document.querySelectorAll('.admin-nav a').forEach(a => a.classList.remove('active'));
@@ -558,6 +560,145 @@
                         btn.textContent = 'Create Problem';
                     }
                 };
+            }
+
+            // ---- Load Contest Management ----
+            async function loadContests(elClicked) {
+                setActiveNav(elClicked);
+                content.innerHTML = '';
+
+                content.appendChild(el('h1', { text: 'Contest Management', style: { marginBottom: '24px' } }));
+
+                // 1. Create Form
+                const form = el('form', { id: 'create-contest-form', class: 'card mb-24' });
+                form.appendChild(el('h3', { text: 'Schedule New Contest' }));
+                form.appendChild(el('div', { class: 'flex gap-16' }, [
+                    el('div', { class: 'field', style: { flex: 2 } }, [
+                        el('label', { text: 'Title' }),
+                        el('input', { type: 'text', id: 'contest-title', required: true, placeholder: 'Weekly Contest 2' })
+                    ]),
+                    el('div', { class: 'field', style: { flex: 1 } }, [
+                        el('label', { text: 'Description' }),
+                        el('input', { type: 'text', id: 'contest-desc', placeholder: 'Optional' })
+                    ])
+                ]));
+                form.appendChild(el('div', { class: 'flex gap-16' }, [
+                    el('div', { class: 'field', style: { flex: 1 } }, [
+                        el('label', { text: 'Start Time' }),
+                        el('input', { type: 'datetime-local', id: 'contest-start', required: true })
+                    ]),
+                    el('div', { class: 'field', style: { flex: 1 } }, [
+                        el('label', { text: 'End Time' }),
+                        el('input', { type: 'datetime-local', id: 'contest-end', required: true })
+                    ])
+                ]));
+                form.appendChild(el('div', { style: { textAlign: 'right' } }, [
+                    el('button', { type: 'submit', class: 'btn', text: 'Schedule Contest' })
+                ]));
+                content.appendChild(form);
+
+                // 2. List of Contests
+                const listContainer = el('div', { id: 'contests-list' });
+                content.appendChild(listContainer);
+
+                async function fetchContests() {
+                    listContainer.innerHTML = `<div class="loading-block"><span class="spinner"></span><span>Loading contests…</span></div>`;
+                    try {
+                        const contests = await apiFetch('/api/admin/contests');
+                        listContainer.innerHTML = '';
+
+                        if (contests.length === 0) {
+                            listContainer.appendChild(el('p', { class: 'muted', text: 'No contests scheduled yet.' }));
+                            return;
+                        }
+
+                        const table = el('table');
+                        table.appendChild(el('thead', {}, [
+                            el('tr', {}, [
+                                el('th', { text: 'Title' }),
+                                el('th', { text: 'Start Time' }),
+                                el('th', { text: 'End Time' }),
+                                el('th', { text: 'Status' }),
+                                el('th', { text: 'Action' })
+                            ])
+                        ]));
+                        const tbody = el('tbody');
+                        contests.forEach(c => {
+                            const start = new Date(c.start_time);
+                            const end = new Date(c.end_time);
+                            const now = new Date();
+                            const isLive = now >= start && now <= end;
+                            const isPast = now > end;
+
+                            let statusBadge = el('span', { class: 'badge PENDING', text: 'Draft' });
+                            if (isLive) statusBadge = el('span', { class: 'badge AC', text: '🔴 Live' });
+                            else if (isPast) statusBadge = el('span', { class: 'badge WA', text: 'Ended' });
+                            else if (c.is_published) statusBadge = el('span', { class: 'badge PROCESSING', text: 'Published' });
+
+                            const actionCell = el('td', {});
+                            if (!isPast) {
+                                actionCell.appendChild(el('button', {
+                                    class: `btn ghost ${c.is_published ? 'danger' : 'success'}`,
+                                    text: c.is_published ? 'Unpublish' : 'Publish',
+                                    onclick: async () => {
+                                        try {
+                                            await apiFetch(`/api/admin/contests/${c.id}/publish?publish=${!c.is_published}`, { method: 'PUT' });
+                                            toast(c.is_published ? 'Contest unpublished' : 'Contest published', 'success');
+                                            fetchContests();
+                                        } catch (err) {
+                                            toast(err.message || 'Failed to update contest', 'error');
+                                        }
+                                    }
+                                }));
+                            }
+
+                            tbody.appendChild(el('tr', {}, [
+                                el('td', { text: c.title }),
+                                el('td', { class: 'muted', text: start.toLocaleString() }),
+                                el('td', { class: 'muted', text: end.toLocaleString() }),
+                                el('td', {}, [statusBadge]),
+                                actionCell
+                            ]));
+                        });
+                        table.appendChild(tbody);
+                        listContainer.appendChild(el('div', { class: 'table-wrap' }, [table]));
+                    } catch (err) {
+                        listContainer.innerHTML = `<p class="error">${err.message || 'Failed to load contests'}</p>`;
+                    }
+                }
+
+                // Handle form submit
+                form.onsubmit = async (e) => {
+                    e.preventDefault();
+                    const btn = form.querySelector('button[type="submit"]');
+                    btn.disabled = true;
+                    btn.textContent = 'Scheduling...';
+
+                    try {
+                        const start = new Date(document.getElementById('contest-start').value).toISOString();
+                        const end = new Date(document.getElementById('contest-end').value).toISOString();
+
+                        await apiFetch('/api/admin/contests', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                title: document.getElementById('contest-title').value,
+                                description: document.getElementById('contest-desc').value,
+                                start_time: start,
+                                end_time: end
+                            })
+                        });
+                        toast('Contest scheduled!', 'success');
+                        form.reset();
+                        fetchContests();
+                    } catch (err) {
+                        toast(err.message || 'Failed to schedule contest', 'error');
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = 'Schedule Contest';
+                    }
+                };
+
+                fetchContests();
             }
 
             // Load default view

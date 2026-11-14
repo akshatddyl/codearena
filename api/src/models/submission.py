@@ -65,6 +65,8 @@ class SubmissionDetail(BaseModel):
     test_current: Optional[int] = None
     username: Optional[str] = None
     problem_title: Optional[str] = None
+    problem_time_limit_ms: Optional[int] = None
+    problem_memory_limit_mb: Optional[int] = None
 
 
 class SubmissionSummary(BaseModel):
