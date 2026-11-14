@@ -58,7 +58,12 @@
                 currentTab = tab;
                 tabGlobal.classList.toggle('active', tab === 'global');
                 tabFriends.classList.toggle('active', tab === 'friends');
-                loadLeaderboard();
+                container.style.opacity = '0.5';
+                container.style.transition = 'opacity 0.15s ease';
+                setTimeout(() => {
+                    container.style.opacity = '';
+                    loadLeaderboard();
+                }, 120);
             }
 
             async function loadLeaderboard() {
@@ -85,14 +90,14 @@
                         ]),
                     ]));
                     const tbody = el('tbody');
-                    for (const r of rows) {
+                    rows.forEach((r, i) => {
                         const rank = r.rank;
                         let medalClass = 'plain';
                         if (rank === 1) medalClass = 'gold';
                         else if (rank === 2) medalClass = 'silver';
                         else if (rank === 3) medalClass = 'bronze';
 
-                        tbody.appendChild(el('tr', {}, [
+                        const tr = el('tr', { class: 'anim-row', style: { '--i': String(Math.min(i, 20)) } }, [
                             el('td', {}, [
                                 el('span', { class: `rank-medal ${medalClass}`, text: String(rank) }),
                             ]),
@@ -102,8 +107,9 @@
                             el('td', { class: 'num', text: String(r.total_score) }),
                             el('td', { class: 'num', text: String(r.total_solved) }),
                             el('td', { class: 'num', text: String(r.total_submissions) }),
-                        ]));
-                    }
+                        ]);
+                        tbody.appendChild(tr);
+                    });
                     table.appendChild(tbody);
 
                     clear(container);

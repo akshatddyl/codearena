@@ -61,6 +61,7 @@
             let stopFn = null;
 
             let hasCelebrated = false;
+            let lastLivePct = 0;
 
             function render(s) {
                 document.title = s.result
@@ -75,6 +76,9 @@
 
                 const r = s.result;
                 const verdict = r ? r.verdict : s.status;
+                if (s.status === 'COMPLETED' || s.status === 'FAILED') {
+                    lastLivePct = 0;
+                }
                 if (verdict === 'AC' && !hasCelebrated) {
                     hasCelebrated = true;
                     // Only celebrate if the submission just completed (within the last 10 seconds)
@@ -91,7 +95,7 @@
                 // Hero: verdict + test case progress + metrics
                 // ============================================================
                 const hero = el('div', {
-                    class: 'verdict-hero ' + verdict,
+                    class: 'verdict-hero ' + verdict + ' verdict-reveal',
                     'aria-live': 'polite',
                 });
 
@@ -177,7 +181,7 @@
                         el('div', { class: 'metric-bar-bg' }, [
                             el('div', {
                                 class: `metric-bar-fill ${timeColor}`,
-                                style: { width: `${timePct}%` }
+                                'data-progress': `${timePct}%`
                             })
                         ]),
                         el('div', { class: 'metric-comparison', text: `${timePct}% of limit used` })
@@ -200,7 +204,7 @@
                         el('div', { class: 'metric-bar-bg' }, [
                             el('div', {
                                 class: `metric-bar-fill ${memColor}`,
-                                style: { width: `${memPct}%` }
+                                'data-progress': `${memPct}%`
                             })
                         ]),
                         el('div', { class: 'metric-comparison', text: `${memPct}% of limit used` })
@@ -208,6 +212,7 @@
 
                     vizCard.appendChild(vizContainer);
                     container.appendChild(vizCard);
+                    if (typeof animateProgressBars === 'function') animateProgressBars(vizCard);
                 }
 
                 // ============================================================
@@ -215,6 +220,7 @@
                 // ============================================================
                 if (s.status === 'PROCESSING' && s.test_current && s.test_total) {
                     const pct = Math.round((s.test_current / s.test_total) * 100);
+                    const fromPct = Math.min(lastLivePct, pct);
                     const live = el('div', {
                         class: 'card mb-24'
                     }, [
@@ -239,13 +245,25 @@
                         }, [
                             el('div', {
                                 class: 'bar',
+                                id: 'live-progress-bar',
                                 style: {
-                                    width: `${pct}%`
+                                    width: `${fromPct}%`,
+                                    transition: 'none'
                                 }
                             }),
                         ]),
                     ]);
                     container.appendChild(live);
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            const bar = document.getElementById('live-progress-bar');
+                            if (bar) {
+                                bar.style.transition = 'width 0.45s cubic-bezier(0.22, 1, 0.36, 1)';
+                                bar.style.width = `${pct}%`;
+                            }
+                        });
+                    });
+                    lastLivePct = pct;
                 } else if (s.status === 'PENDING' || s.status === 'PROCESSING') {
                     // Generic loader when we don't have progress info
                     const live = el('div', {
@@ -310,8 +328,9 @@
                 // Error / output sections
                 // ============================================================
                 if (r && r.stderr) {
-                    container.appendChild(el('div', {
-                        class: 'card mb-24'
+                    const errCard = el('div', {
+                        class: 'card mb-24 anim-rise',
+                        style: { '--stagger': '1' }
                     }, [
                         el('h3', {
                             class: 'mb-0',
@@ -321,7 +340,8 @@
                             class: 'code-block error-output mt-16',
                             text: r.stderr
                         }),
-                    ]));
+                    ]);
+                    container.appendChild(errCard);
                 }
                 if (r && r.stdout) {
                     container.appendChild(el('div', {
@@ -348,13 +368,13 @@
 
                 // If there is a previous submission, add the diff toggle
                 if (s.previous_source_code != null) {
-                    const diffContainer = el('div', { class: 'hidden' });
+                    const diffContainer = el('div', { class: 'diff-reveal' });
 
                     const diffToggle = el('div', {
                         class: 'diff-toggle',
                         onclick: () => {
-                            const isHidden = diffContainer.classList.contains('hidden');
-                            diffContainer.classList.toggle('hidden');
+                            const isHidden = !diffContainer.classList.contains('open');
+                            diffContainer.classList.toggle('open', isHidden);
                             diffToggle.textContent = isHidden ? 'Hide diff from previous submission' : 'Show diff from previous submission';
                             if (isHidden && !diffContainer.hasChildNodes()) {
                                 renderDiff(diffContainer, s.previous_source_code, s.source_code);
@@ -477,9 +497,9 @@
 
                     const tbody = el('tbody');
 
-                    for (const c of cases) {
+                    for (const [i, c] of cases.entries()) {
                         // Main row
-                        const tr = el('tr', {}, [
+                        const tr = el('tr', { class: 'anim-row', style: { '--i': String(i) } }, [
                             el('td', { class: 'mono muted', text: String(c.ordinal) }),
                             el('td', {}, [verdictBadge(c.verdict)]),
                             el('td', { class: 'num', text: c.runtime_ms != null ? `${c.runtime_ms} ms` : '—' }),

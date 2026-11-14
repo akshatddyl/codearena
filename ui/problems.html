@@ -88,8 +88,8 @@
                     ]),
                 ]));
                 const tbody = el('tbody');
-                for (const p of filtered) {
-                    tbody.appendChild(el('tr', {}, [
+                filtered.forEach((p, i) => {
+                    tbody.appendChild(el('tr', { class: 'anim-row', style: { '--i': String(Math.min(i, 20)) } }, [
                         el('td', { class: 'mono muted', text: String(p.id) }),
                         el('td', {}, [
                             el('a', { href: `problem.html?id=${p.id}`, text: p.title }),
@@ -98,7 +98,7 @@
                         el('td', { class: 'num', text: `${p.time_limit_ms} ms` }),
                         el('td', { class: 'num', text: `${p.memory_limit_mb} MB` }),
                     ]));
-                }
+                });
                 table.appendChild(tbody);
 
                 clear(container);
@@ -112,13 +112,18 @@
             if (randomBtn) {
                 randomBtn.addEventListener('click', async (e) => {
                     const btn = e.currentTarget;
+                    const orig = btn.textContent;
                     btn.disabled = true;
+                    btn.classList.add('btn-loading');
+                    btn.textContent = 'Finding…';
                     try {
                         const res = await apiFetch('/api/problems/random');
                         location.href = `problem.html?id=${res.id}`;
                     } catch (err) {
                         toast(err.message || 'Failed to find a problem', 'error');
                         btn.disabled = false;
+                        btn.classList.remove('btn-loading');
+                        btn.textContent = orig;
                     }
                 });
             }

@@ -38,7 +38,7 @@
         </div>
     </main>
 
-    <div id="edit-modal" class="shortcuts-backdrop hidden"
+    <div id="edit-modal" class="shortcuts-backdrop"
         role="dialog" aria-modal="true" aria-labelledby="edit-profile-title">
         <section class="shortcuts-modal" style="max-width:500px;">
             <header class="shortcuts-header">
@@ -95,7 +95,6 @@
 
             function closeEditModal() {
                 editModal.classList.remove('visible');
-                editModal.classList.add('hidden');
                 if (modalReturnFocus) modalReturnFocus.focus();
             }
 
@@ -105,8 +104,6 @@
                 editError.textContent = '';
                 editError.classList.add('hidden');
                 modalReturnFocus = document.activeElement;
-                editModal.classList.remove('hidden');
-                void editModal.offsetWidth;
                 editModal.classList.add('visible');
                 avatarInput.focus();
             }
@@ -127,24 +124,27 @@
                 if (!btn) return;
                 const isFollowing = btn.textContent === 'Following';
                 btn.disabled = true;
+                btn.classList.add('btn-loading');
                 btn.textContent = '...';
 
                 try {
                     if (isFollowing) {
                         await apiFetch(`/api/follows/${encodeURIComponent(username)}`, { method: 'DELETE' });
                         btn.textContent = 'Follow';
-                        btn.className = 'btn';
+                        btn.className = 'btn btn-success-flash';
                     } else {
                         await apiFetch(`/api/follows/${encodeURIComponent(username)}`, { method: 'POST' });
                         btn.textContent = 'Following';
-                        btn.className = 'btn secondary';
+                        btn.className = 'btn secondary btn-success-flash';
                     }
+                    setTimeout(() => btn.classList.remove('btn-success-flash'), 600);
                 } catch (err) {
                     toast(err.message || 'Failed to update follow status', 'error');
                     btn.textContent = isFollowing ? 'Following' : 'Follow';
                     btn.className = isFollowing ? 'btn secondary' : 'btn';
                 } finally {
                     btn.disabled = false;
+                    btn.classList.remove('btn-loading');
                 }
             }
 
@@ -244,7 +244,8 @@
                 }
 
                 const headerEl = el('div', {
-                    style: { display: 'flex', gap: '24px', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap' }
+                    class: 'anim-rise',
+                    style: { display: 'flex', gap: '24px', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', '--stagger': '0' }
                 }, [
                     avatar,
                     el('div', { style: { flex: 1, minWidth: '200px' } }, [
@@ -278,7 +279,7 @@
                 container.appendChild(headerEl);
 
                 // Stats grid
-                const statsGrid = el('div', { class: 'card-grid mb-24' }, [
+                const statsGrid = el('div', { class: 'card-grid mb-24 anim-rise', style: { '--stagger': '1' } }, [
                     statCard('Level', `Lvl ${profile.level || 1}`, `${profile.xp || 0} XP earned`),
                     statCard('Global Rank', profile.rank ? `#${profile.rank}` : '—', 'across all users'),
                     statCard('Solved', profile.total_solved, 'problems with AC'),
@@ -287,7 +288,7 @@
                 container.appendChild(statsGrid);
 
                 // Heat-map
-                const heatmapContainer = el('div', { id: 'profile-heatmap' });
+                const heatmapContainer = el('div', { id: 'profile-heatmap', class: 'anim-rise', style: { '--stagger': '2' } });
                 container.appendChild(heatmapContainer);
                 renderHeatmap(heatmapContainer, heatmap);
             }

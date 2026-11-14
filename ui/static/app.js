@@ -30,12 +30,28 @@ function toast(message, type = 'info', durationMs = 4000) {
     container.appendChild(t);
 
     setTimeout(() => {
-        t.style.transition = 'opacity 0.2s, transform 0.2s';
+        t.style.transition = 'opacity 0.22s ease, transform 0.22s ease';
         t.style.opacity = '0';
-        t.style.transform = 'translateX(120%)';
-        setTimeout(() => t.remove(), 200);
+        t.style.transform = 'translateX(24px) scale(0.96)';
+        setTimeout(() => t.remove(), 220);
     }, durationMs);
 }
+
+// ------------------------------------------------------------------
+// Progress bar animation helper (count-up to target width once)
+// ------------------------------------------------------------------
+
+function animateProgressBars(container = document) {
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            (container.querySelectorAll ? container : document).querySelectorAll('[data-progress]:not([data-animated])').forEach(el => {
+                el.style.width = el.dataset.progress;
+                el.dataset.animated = '1';
+            });
+        });
+    });
+}
+window.animateProgressBars = animateProgressBars;
 
 // ------------------------------------------------------------------
 // Theme management
@@ -54,22 +70,80 @@ function currentTheme() {
 
 /**
  * Apply a theme and persist it.
+ * When `origin` is provided (MouseEvent/element/point), uses a circular reveal
+ * transition from that point if supported.
  */
-function setTheme(theme) {
+function setTheme(theme, origin) {
     if (theme !== THEME_LIGHT && theme !== THEME_DARK) {
         theme = THEME_LIGHT;
     }
-    document.documentElement.dataset.theme = theme;
-    try {
-        localStorage.setItem(THEME_KEY, theme);
-    } catch (err) {
-        // localStorage can fail in private browsing — fall back to memory
-        console.warn('Could not persist theme:', err);
+
+    const apply = () => {
+        document.documentElement.dataset.theme = theme;
+        try {
+            localStorage.setItem(THEME_KEY, theme);
+        } catch (err) {
+            // localStorage can fail in private browsing — fall back to memory
+            console.warn('Could not persist theme:', err);
+        }
+        // Update meta theme-color if present (used by mobile browsers)
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) {
+            meta.setAttribute('content', theme === THEME_DARK ? '#1a1114' : '#FBEDE8');
+        }
+    };
+
+    const prefersReduced = window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReduced || typeof document.startViewTransition !== 'function') {
+        apply();
+        return;
     }
-    // Update meta theme-color if present (used by mobile browsers)
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) {
-        meta.setAttribute('content', theme === THEME_DARK ? '#1a1114' : '#FBEDE8');
+
+    let x = window.innerWidth / 2;
+    let y = window.innerHeight / 2;
+    if (origin) {
+        if (typeof origin.clientX === 'number' && typeof origin.clientY === 'number') {
+            x = origin.clientX;
+            y = origin.clientY;
+        } else if (origin instanceof Element) {
+            const rect = origin.getBoundingClientRect();
+            x = rect.left + rect.width / 2;
+            y = rect.top + rect.height / 2;
+        } else if (typeof origin.x === 'number' && typeof origin.y === 'number') {
+            x = origin.x;
+            y = origin.y;
+        }
+    }
+
+    const root = document.documentElement;
+    root.style.setProperty('--theme-toggle-x', `${x}px`);
+    root.style.setProperty('--theme-toggle-y', `${y}px`);
+    const radius = Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y)
+    );
+    root.style.setProperty('--theme-toggle-radius', `${radius}px`);
+
+    try {
+        const transition = document.startViewTransition(apply);
+        if (transition && transition.finished) {
+            transition.finished.finally(() => {
+                root.style.removeProperty('--theme-toggle-x');
+                root.style.removeProperty('--theme-toggle-y');
+                root.style.removeProperty('--theme-toggle-radius');
+            });
+        } else {
+            root.style.removeProperty('--theme-toggle-x');
+            root.style.removeProperty('--theme-toggle-y');
+            root.style.removeProperty('--theme-toggle-radius');
+        }
+    } catch (_) {
+        root.style.removeProperty('--theme-toggle-x');
+        root.style.removeProperty('--theme-toggle-y');
+        root.style.removeProperty('--theme-toggle-radius');
+        apply();
     }
 }
 
@@ -322,7 +396,16 @@ function clearFieldError(inputEl) {
     inputEl.removeAttribute('aria-describedby');
 }
 
-function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+function clear(node) {
+    if (!node) return;
+    while (node.firstChild) node.removeChild(node.firstChild);
+    if (node.classList && !node.classList.contains('anim-rise') && !node.closest('.anim-rise')) {
+        node.classList.remove('content-fade-in');
+        // restart animation when container is repopulated
+        void node.offsetWidth;
+        node.classList.add('content-fade-in');
+    }
+}
 
 // ------------------------------------------------------------------
 // Formatting
@@ -530,9 +613,9 @@ function renderHeader(activePage) {
                 class: 'theme-toggle',
                 title: 'Toggle theme',
                 'aria-label': 'Toggle theme',
-                onclick: () => {
+                onclick: (e) => {
                     const next = currentTheme() === 'dark' ? 'light' : 'dark';
-                    setTheme(next);
+                    setTheme(next, e);
                     // Swap icon
                     themeBtn.innerHTML = '';
                     themeBtn.appendChild(icon(next === 'dark' ? 'sun' : 'moon'));
@@ -1339,7 +1422,8 @@ const SHORTCUTS = [
             {
                 type: 'action', label: 'Toggle Theme', action: () => {
                     const current = currentTheme();
-                    setTheme(current === 'light' ? 'dark' : 'light');
+                    const origin = document.querySelector('.theme-toggle') || { x: window.innerWidth / 2, y: 0 };
+                    setTheme(current === 'light' ? 'dark' : 'light', origin);
                 }, icon: 'moon'
             },
             { type: 'action', label: 'Logout', action: () => Auth.logout(), icon: 'chevron' }

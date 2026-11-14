@@ -95,8 +95,8 @@
                     ]),
                 ]));
                 const tbody = el('tbody');
-                for (const s of filtered) {
-                    tbody.appendChild(el('tr', {}, [
+                filtered.forEach((s, i) => {
+                    tbody.appendChild(el('tr', { class: 'anim-row', style: { '--i': String(Math.min(i, 20)) } }, [
                         el('td', { class: 'mono muted', text: `#${s.id}` }),
                         el('td', {}, [
                             el('a', {
@@ -111,7 +111,7 @@
                         el('td', { class: 'num', text: s.memory_kb != null ? `${formatNumber(s.memory_kb)} KB` : '—' }),
                         el('td', { class: 'muted', text: formatDate(s.submitted_at) }),
                     ]));
-                }
+                });
                 table.appendChild(tbody);
 
                 clear(container);
