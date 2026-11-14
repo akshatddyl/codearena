@@ -40,6 +40,9 @@
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
             </select>
+            <button id="random-problem-btn-list" class="btn secondary" style="margin-left: auto;">
+                🎲 Random
+            </button>
         </div>
 
         <div id="problems-view"></div>
@@ -104,6 +107,21 @@
 
             search.addEventListener('input', render);
             diffFilter.addEventListener('change', render);
+
+            const randomBtn = document.getElementById('random-problem-btn-list');
+            if (randomBtn) {
+                randomBtn.addEventListener('click', async (e) => {
+                    const btn = e.currentTarget;
+                    btn.disabled = true;
+                    try {
+                        const res = await apiFetch('/api/problems/random');
+                        location.href = `problem.html?id=${res.id}`;
+                    } catch (err) {
+                        toast(err.message || 'Failed to find a problem', 'error');
+                        btn.disabled = false;
+                    }
+                });
+            }
 
             // 2. Render Skeleton immediately
             loadingState(container, 'table', { cols: 5, rows: 8 });

@@ -36,6 +36,17 @@
             <div>
                 <div id="onboarding-container"></div>
 
+                <!-- Resume Last Problem Card -->
+                <div id="resume-card" class="card mb-24 hidden" style="border-left: 4px solid var(--tertiary);">
+                    <div class="flex" style="justify-content: space-between; align-items: center;">
+                        <div>
+                            <h3 style="margin: 0; font-family: var(--font-serif); font-size: 1.2rem;">Pick up where you left off</h3>
+                            <p class="muted" style="margin: 4px 0 0;" id="resume-desc">You were working on a problem.</p>
+                        </div>
+                        <a id="resume-btn" href="#" class="btn">Resume</a>
+                    </div>
+                </div>
+
                 <div class="flex gap-16" style="align-items:center;justify-content:space-between;margin-bottom:32px;">
                     <div>
                         <h1 id="greeting">Welcome back</h1>
@@ -43,6 +54,9 @@
                     </div>
                     <div style="display:flex;gap:12px;">
                         <a id="view-profile-btn" href="#" class="btn secondary">View Profile</a>
+                        <button id="random-problem-btn" class="btn secondary">
+                            🎲 Random Problem
+                        </button>
                         <a href="problems.html" class="btn">Browse Problems</a>
                     </div>
                 </div>
@@ -324,6 +338,55 @@
             }
 
             loadActivityFeed();
+
+            // ---- Random Problem Button ----
+            const randomProblemBtn = document.getElementById('random-problem-btn');
+            if (randomProblemBtn) {
+                randomProblemBtn.addEventListener('click', async (e) => {
+                    const btn = e.currentTarget;
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = 'Finding...';
+                    btn.disabled = true;
+
+                    try {
+                        const res = await apiFetch('/api/problems/random');
+                        location.href = `problem.html?id=${res.id}`;
+                    } catch (err) {
+                        toast(err.message || 'Failed to find a problem', 'error');
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }
+                });
+            }
+
+            // ---- Resume Last Problem ----
+            function setupResumeCard() {
+                const lastId = localStorage.getItem('codearena_last_problem');
+                if (!lastId) return;
+
+                const draftKey = 'codearena_source_' + lastId;
+                const draft = localStorage.getItem(draftKey);
+
+                if (!draft || draft.trim().length === 0) return; // No draft, don't show card
+
+                const resumeCard = document.getElementById('resume-card');
+                const resumeBtn = document.getElementById('resume-btn');
+                const resumeDesc = document.getElementById('resume-desc');
+                if (!resumeCard || !resumeBtn || !resumeDesc) return;
+
+                // Fetch problem title (async, but we can show the card immediately)
+                resumeBtn.href = `problem.html?id=${lastId}`;
+                resumeCard.classList.remove('hidden');
+
+                apiFetch(`/api/problems/${lastId}`).then(p => {
+                    resumeDesc.textContent = `You were working on "${p.title}".`;
+                }).catch(() => {
+                    resumeDesc.textContent = `You were working on a problem.`;
+                });
+            }
+
+            // Call it on dashboard load
+            setupResumeCard();
 
             // ---- Load Topic Mastery ----
             async function loadTopicMastery() {

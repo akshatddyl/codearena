@@ -33,6 +33,46 @@ async def list_problems(
     return [ProblemSummary(**dict(r)) for r in rows]
 
 
+@router.get("/random")
+async def get_random_problem(
+    user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Return a random problem ID that the user has not yet solved.
+    If they have solved everything, return a completely random one.
+    """
+    # Find unsolved problems
+    row = await db.fetch_one(
+        """
+        SELECT p.id
+        FROM problems p
+        WHERE p.is_active = TRUE
+          AND NOT EXISTS (
+              SELECT 1
+              FROM submissions s
+              JOIN results r ON r.submission_id = s.id
+              WHERE s.user_id = $1
+                AND s.problem_id = p.id
+                AND r.verdict = 'AC'
+          )
+        ORDER BY RANDOM()
+        LIMIT 1
+        """,
+        user.id,
+    )
+
+    # Fallback: If all problems are solved, pick any random problem
+    if not row:
+        row = await db.fetch_one(
+            "SELECT id FROM problems WHERE is_active = TRUE ORDER BY RANDOM() LIMIT 1"
+        )
+
+    if not row:
+        raise HTTPException(status_code=404, detail="No problems available")
+
+    return {"id": row["id"]}
+
+
 @router.get("/{problem_id}", response_model=ProblemDetail)
 async def get_problem(
     problem_id: int,

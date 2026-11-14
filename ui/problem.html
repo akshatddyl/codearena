@@ -318,6 +318,9 @@
                 return;
             }
 
+            // Save last visited problem to localStorage
+            localStorage.setItem('codearena_last_problem', problemId);
+
             // ---- Persistent language + draft ---------------------------------
             const savedLang = localStorage.getItem('codearena_lang');
             if (savedLang) language.value = savedLang;
