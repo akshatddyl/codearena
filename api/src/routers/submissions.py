@@ -3,6 +3,7 @@
 """
 
 import logging
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -79,6 +80,43 @@ async def create_submission(
         log.error("failed to enqueue submission %d", row["id"])
 
     return SubmissionCreated(**dict(row))
+
+
+@router.get("/by-date")
+async def get_submissions_by_date(
+    date_str: str,  # Format: YYYY-MM-DD
+    user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Fetch all submissions made by the current user on a specific date.
+    """
+    try:
+        day = date.fromisoformat(date_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid date_str, expected YYYY-MM-DD")
+
+    rows = await db.fetch_all(
+        """
+        SELECT
+            s.id,
+            s.problem_id,
+            p.title AS problem_title,
+            s.language,
+            s.status,
+            s.submitted_at,
+            r.verdict,
+            r.score,
+            r.runtime_ms
+        FROM submissions s
+        JOIN problems p ON p.id = s.problem_id
+        LEFT JOIN results r ON r.submission_id = s.id
+        WHERE s.user_id = $1
+          AND (s.submitted_at AT TIME ZONE 'UTC')::date = $2::date
+        ORDER BY s.submitted_at ASC
+        """,
+        user.id, day,
+    )
+    return [dict(r) for r in rows]
 
 
 @router.get("/{submission_id}", response_model=SubmissionDetail)

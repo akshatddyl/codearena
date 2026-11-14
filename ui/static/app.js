@@ -265,6 +265,7 @@ const Api = {
     getSubmission: (id) => apiFetchWithRetry(`/api/submissions/${id}`),
     listSubmissions: (limit = 50, offset = 0) =>
         apiFetchWithRetry(`/api/submissions?limit=${limit}&offset=${offset}`),
+    getSubmissionsByDate: (dateStr) => apiFetch(`/api/submissions/by-date?date_str=${encodeURIComponent(dateStr)}`),
     leaderboard: (limit = 50, offset = 0) =>
         apiFetchWithRetry(`/api/leaderboard?limit=${limit}&offset=${offset}`),
     getStreak: () => apiFetchWithRetry('/api/stats/streak'),

@@ -627,12 +627,17 @@
                         }
 
                         const level = levelFor(day.count);
-
                         const cell = el('div', {
                             class: `heatmap-cell level-${level}`,
                             'data-date': day.key,
                             'data-count': String(day.count),
-                            title: `${day.count} submission${day.count === 1 ? '' : 's'} on ${day.key}`
+                            title: `${day.count} submission${day.count === 1 ? '' : 's'} on ${day.key}`,
+                            onclick: () => {
+                                if (day.count > 0) {
+                                    openDayModal(day.key, day.count);
+                                }
+                            },
+                            style: day.count > 0 ? { cursor: 'pointer' } : {}
                         });
 
                         weekCol.appendChild(cell);
@@ -740,9 +745,89 @@
                 });
             }
 
+            // ---- Heatmap Day Modal ----
+            async function openDayModal(dateStr, count) {
+                const modal = document.getElementById('day-modal');
+                const title = document.getElementById('day-modal-title');
+                const content = document.getElementById('day-modal-content');
+
+                // Setup modal UI
+                const d = new Date(dateStr + 'T00:00:00Z');
+                const formattedDate = d.toLocaleDateString(undefined, {
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'
+                });
+                title.textContent = `Submissions on ${formattedDate}`;
+
+                content.innerHTML = `<div class="loading-block" style="padding: 40px;"><span class="spinner"></span><span>Loading...</span></div>`;
+
+                modal.classList.remove('hidden');
+                void modal.offsetWidth;
+                modal.classList.add('visible');
+
+                try {
+                    const subs = await Api.getSubmissionsByDate(dateStr);
+
+                    if (subs.length === 0) {
+                        content.innerHTML = '<p class="muted" style="padding: 24px;">No submissions found for this date.</p>';
+                        return;
+                    }
+
+                    content.innerHTML = '';
+
+                    const table = el('table');
+                    table.appendChild(el('thead', {}, [
+                        el('tr', {}, [
+                            el('th', { text: 'Problem' }),
+                            el('th', { text: 'Lang' }),
+                            el('th', { text: 'Verdict' }),
+                            el('th', { class: 'num', text: 'Runtime' }),
+                            el('th', { text: 'Time' })
+                        ])
+                    ]));
+
+                    const tbody = el('tbody');
+                    subs.forEach(s => {
+                        // Format time
+                        const timeStr = new Date(s.submitted_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+
+                        tbody.appendChild(el('tr', {}, [
+                            el('td', {}, [
+                                el('a', { href: `submission.html?id=${s.id}`, text: s.problem_title || `Problem ${s.problem_id}` })
+                            ]),
+                            el('td', { text: s.language }),
+                            el('td', {}, [verdictBadge(s.verdict || s.status)]),
+                            el('td', { class: 'num', text: s.runtime_ms != null ? `${s.runtime_ms} ms` : '—' }),
+                            el('td', { class: 'muted', text: timeStr })
+                        ]));
+                    });
+
+                    table.appendChild(tbody);
+                    content.appendChild(table);
+
+                } catch (err) {
+                    content.innerHTML = `<p class="error" style="padding: 24px;">${err.message || 'Failed to load submissions'}</p>`;
+                }
+            }
+            window.openDayModal = openDayModal;
+
             render();
         })();
     </script>
+
+    <!-- Heatmap Day Modal -->
+    <div id="day-modal" class="shortcuts-backdrop hidden" style="z-index: 1050;">
+        <div class="shortcuts-modal" style="max-width: 600px;">
+            <div class="shortcuts-header">
+                <h2 id="day-modal-title">Submissions</h2>
+                <button class="shortcuts-close" onclick="document.getElementById('day-modal').classList.remove('visible'); setTimeout(() => document.getElementById('day-modal').classList.add('hidden'), 200);">✕</button>
+            </div>
+            <div class="shortcuts-body" style="padding: 0;">
+                <div id="day-modal-content">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
