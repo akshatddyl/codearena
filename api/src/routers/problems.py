@@ -3,6 +3,7 @@
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 from .. import db
 from ..deps import CurrentUser, get_current_user
@@ -51,3 +52,26 @@ async def get_problem(
     if row is None:
         raise HTTPException(status_code=404, detail="problem not found")
     return ProblemDetail(**dict(row))
+
+
+class HintResponse(BaseModel):
+    ordinal: int
+    content: str
+
+
+@router.get("/{problem_id}/hints", response_model=list[HintResponse])
+async def get_problem_hints(
+    problem_id: int,
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Fetch the hints for a problem, ordered by ordinal."""
+    rows = await db.fetch_all(
+        """
+        SELECT ordinal, content
+        FROM problem_hints
+        WHERE problem_id = $1
+        ORDER BY ordinal ASC
+        """,
+        problem_id,
+    )
+    return [dict(r) for r in rows]

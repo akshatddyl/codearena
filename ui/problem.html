@@ -42,6 +42,17 @@
             <div id="problem-header" class="mb-24"></div>
             <div id="statement"></div>
 
+            <!-- Hints Container -->
+            <div id="hints-container" class="hints-section hidden">
+                <div class="flex" style="justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+                    <h3 style="margin: 0; font-family: var(--font-sans); font-size: 1.1rem; text-transform: none; letter-spacing: normal;">Hints</h3>
+                    <button id="reveal-hint-btn" class="btn secondary" style="padding: 6px 12px; font-size: 13px;">Reveal Hint</button>
+                </div>
+                <div id="hints-list">
+                    <!-- Hint cards will be injected here -->
+                </div>
+            </div>
+
             <!-- Discussions -->
             <div id="discussions-container" class="discussion-section hidden">
                 <div class="discussion-header">
@@ -1131,6 +1142,65 @@
                     }
                 });
             }
+
+            // ---- Progressive Hints ----
+            const hintsContainer = document.getElementById('hints-container');
+            const hintsList = document.getElementById('hints-list');
+            const revealHintBtn = document.getElementById('reveal-hint-btn');
+
+            let allHints = [];
+            let revealedHintCount = 0;
+
+            async function loadHints() {
+                if (!hintsContainer || !hintsList || !revealHintBtn) return;
+                try {
+                    allHints = await apiFetch(`/api/problems/${problemId}/hints`);
+
+                    if (!allHints || allHints.length === 0) {
+                        return; // Don't show the section if no hints exist
+                    }
+
+                    // Show the hints section
+                    hintsContainer.classList.remove('hidden');
+
+                    // If we have more hints than revealed, enable the button
+                    updateRevealButton();
+
+                } catch (err) {
+                    console.error('Failed to load hints', err);
+                }
+            }
+
+            function updateRevealButton() {
+                if (!revealHintBtn) return;
+                if (revealedHintCount >= allHints.length) {
+                    revealHintBtn.style.display = 'none';
+                } else {
+                    revealHintBtn.style.display = 'inline-block';
+                    revealHintBtn.textContent = `Reveal Hint (${revealedHintCount}/${allHints.length})`;
+                }
+            }
+
+            if (revealHintBtn) {
+                revealHintBtn.addEventListener('click', () => {
+                    if (revealedHintCount < allHints.length) {
+                        const hint = allHints[revealedHintCount];
+
+                        // Append the hint card
+                        const hintCard = el('div', { class: 'hint-card' }, [
+                            el('div', { class: 'hint-label', text: `Hint ${hint.ordinal}` }),
+                            el('div', { class: 'hint-text', text: hint.content })
+                        ]);
+
+                        hintsList.appendChild(hintCard);
+                        revealedHintCount++;
+                        updateRevealButton();
+                    }
+                });
+            }
+
+            // Call loadHints() when the problem loads
+            loadHints();
 
             // Trigger loading of comments after problem is loaded
             loadComments();

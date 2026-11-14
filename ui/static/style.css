@@ -3608,3 +3608,38 @@ body.editor-fullscreen #toggle-fullscreen {
     display: block;
     margin-top: 4px;
 }
+
+/* ============================================================
+ * Progressive Hints
+ * ============================================================ */
+
+.hints-section {
+    margin-top: var(--space-8);
+    border-top: 1px solid var(--neutral-deep);
+    padding-top: var(--space-6);
+}
+
+.hint-card {
+    background: var(--neutral);
+    border: 1px solid var(--neutral-deep);
+    border-left: 4px solid var(--warning);
+    border-radius: var(--radius-sm);
+    padding: var(--space-4);
+    margin-bottom: var(--space-3);
+    animation: slideDown 0.2s ease-out;
+}
+
+.hint-label {
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--warning);
+    margin-bottom: var(--space-1);
+    letter-spacing: 0.05em;
+}
+
+.hint-text {
+    font-size: var(--text-sm);
+    color: var(--primary);
+    line-height: 1.6;
+}

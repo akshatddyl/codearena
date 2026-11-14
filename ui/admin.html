@@ -403,6 +403,16 @@
                 ]);
                 form.appendChild(tcContainer);
 
+                // --- Hints Container ---
+                const hintsContainer = el('div', { class: 'card mb-24' }, [
+                    el('div', { class: 'flex', style: { justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' } }, [
+                        el('h3', { text: 'Progressive Hints', style: { margin: 0 } }),
+                        el('button', { type: 'button', class: 'btn secondary', text: '+ Add Hint', onclick: addHint })
+                    ]),
+                    el('div', { id: 'hints-list' })
+                ]);
+                form.appendChild(hintsContainer);
+
                 form.appendChild(el('div', { class: 'flex', style: { justifyContent: 'flex-end' } }, [
                     el('button', { type: 'submit', class: 'btn', text: 'Create Problem' })
                 ]));
@@ -444,6 +454,26 @@
                     document.getElementById('tc-list').appendChild(wrapper);
                 }
 
+                // --- Hints Builder Logic ---
+                let hintCount = 0;
+                function addHint() {
+                    hintCount++;
+                    const wrapper = el('div', { style: { padding: '12px', border: '1px solid var(--neutral-deep)', borderRadius: '8px', marginBottom: '12px', position: 'relative' } });
+
+                    wrapper.appendChild(el('button', {
+                        type: 'button', class: 'btn ghost', text: '✕',
+                        style: { position: 'absolute', top: '8px', right: '8px', color: 'var(--danger)' },
+                        onclick: () => wrapper.remove()
+                    }));
+
+                    wrapper.appendChild(el('div', { class: 'field' }, [
+                        el('label', { text: `Hint ${hintCount}` }),
+                        el('textarea', { class: 'hint-content', style: { minHeight: '60px' }, placeholder: 'e.g., Consider using a hash map to optimize lookup time.' })
+                    ]));
+
+                    document.getElementById('hints-list').appendChild(wrapper);
+                }
+
                 // Add one empty test case by default
                 addTestCase();
 
@@ -483,6 +513,16 @@
                         return;
                     }
 
+                    // Gather hints
+                    const hintElements = document.querySelectorAll('#hints-list > div');
+                    const hints = [];
+                    hintElements.forEach(wrapper => {
+                        const content = wrapper.querySelector('.hint-content').value;
+                        if (content.trim()) {
+                            hints.push({ content: content });
+                        }
+                    });
+
                     const payload = {
                         title: document.getElementById('cp-title').value,
                         description: document.getElementById('cp-desc').value,
@@ -492,7 +532,8 @@
                         time_limit_ms: parseInt(document.getElementById('cp-time').value, 10),
                         memory_limit_mb: parseInt(document.getElementById('cp-memory').value, 10),
                         difficulty: document.getElementById('cp-difficulty').value,
-                        test_cases: test_cases
+                        test_cases: test_cases,
+                        hints: hints
                     };
 
                     try {

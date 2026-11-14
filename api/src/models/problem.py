@@ -37,6 +37,10 @@ class TestCaseInput(BaseModel):
     points: int = 10
 
 
+class HintInput(BaseModel):
+    content: str
+
+
 class CreateProblemRequest(BaseModel):
     title: str = Field(..., max_length=255)
     description: str
@@ -47,3 +51,4 @@ class CreateProblemRequest(BaseModel):
     memory_limit_mb: int = Field(256, gt=0, le=4096)
     difficulty: str = Field("easy", pattern="^(easy|medium|hard)$")
     test_cases: List[TestCaseInput] = Field(..., min_items=1)
+    hints: Optional[List[HintInput]] = None

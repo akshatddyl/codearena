@@ -192,4 +192,12 @@ async def create_problem(
                     tc.is_sample, tc.points,
                 )
 
+            # 3. Insert hints
+            if req.hints:
+                for idx, hint in enumerate(req.hints, start=1):
+                    await conn.execute(
+                        "INSERT INTO problem_hints (problem_id, ordinal, content) VALUES ($1, $2, $3)",
+                        problem_id, idx, hint.content,
+                    )
+
     return {"id": problem_id, "status": "created"}
