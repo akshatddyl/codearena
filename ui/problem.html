@@ -807,6 +807,11 @@
                             setTimeout(() => submitBtn.classList.remove('btn-success-flash'), 700);
                             toast("Accepted!", "success");
                             celebrateAC(); // <-- TRIGGER CONFETTI
+                            try {
+                                if (localStorage.getItem('codearena_last_problem') === String(problemId)) {
+                                    localStorage.removeItem('codearena_last_problem');
+                                }
+                            } catch (_) {}
                         } else if (s.result) {
                             toast(`Verdict: ${s.result.verdict}`, "warn");
                         }

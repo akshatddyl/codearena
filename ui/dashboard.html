@@ -426,7 +426,7 @@
             }
 
             // ---- Resume Last Problem ----
-            function setupResumeCard() {
+            async function setupResumeCard() {
                 const lastId = localStorage.getItem('codearena_last_problem');
                 if (!lastId) return;
 
@@ -434,6 +434,30 @@
                 const draft = localStorage.getItem(draftKey);
 
                 if (!draft || draft.trim().length === 0) return; // No draft, don't show card
+
+                // Do not suggest resuming a problem the user has already solved
+                try {
+                    let offset = 0;
+                    let solved = false;
+                    const totalCap = 200;
+                    while (offset < totalCap && !solved) {
+                        const subs = await Api.listSubmissions(100, offset);
+                        const items = subs.items || [];
+                        if (items.some(s => String(s.problem_id) === String(lastId) && s.verdict === 'AC')) {
+                            solved = true;
+                            break;
+                        }
+                        const total = subs.total != null ? subs.total : items.length;
+                        if (items.length < 100 || offset + items.length >= total) break;
+                        offset += items.length;
+                    }
+                    if (solved) {
+                        try { localStorage.removeItem('codearena_last_problem'); } catch (_) {}
+                        return;
+                    }
+                } catch (_) {
+                    // If check fails, fall through and show the card
+                }
 
                 const resumeCard = document.getElementById('resume-card');
                 const resumeBtn = document.getElementById('resume-btn');
